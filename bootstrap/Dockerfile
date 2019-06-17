@@ -1,10 +1,9 @@
 FROM golang:latest as builder
-
 RUN mkdir /build
-ADD /src /build/
+ADD . /build/
 WORKDIR /build
 
-RUN go get github.com/mtfelian/golang-socketio
+RUN go get github.com/gorilla/websocket
 RUN CGO_ENABLED=0                              \
     GOOS=linux                                 \
     go build -a                                \
@@ -13,6 +12,5 @@ RUN CGO_ENABLED=0                              \
              -o main .
 
 FROM scratch
-
-COPY --from=builder /build/main /app/
-WORKDIR /app
+COPY --from=builder /build/main /
+WORKDIR /
