@@ -2,11 +2,9 @@ package main
 
 import (
 	"bufio"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"sync"
@@ -15,16 +13,12 @@ import (
 var (
 	// Proc ...
 	Proc *exec.Cmd
-	tr   = &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	httpClient = &http.Client{Transport: tr}
 )
 
 func pipeToStream(
 	useStdOut bool,
 	onStdio func(string),
-	wgStreamSetup *sync.WaitGroup,
+	wgPipeReady *sync.WaitGroup,
 	wgProcStarted *sync.WaitGroup,
 	cmd *exec.Cmd,
 ) {
@@ -40,7 +34,10 @@ func pipeToStream(
 	if err != nil {
 		panic(err)
 	}
-	wgStreamSetup.Done()
+
+	wgPipeReady.Done()
+	wgProcStarted.Wait()
+
 	scanner := bufio.NewScanner(stdio)
 	for scanner.Scan() {
 		onStdio(scanner.Text())
@@ -48,25 +45,24 @@ func pipeToStream(
 }
 
 func cmdStream(command []string, onStdout func(string), onStderr func(string)) error {
-	// command = append([]string{"-c"}, command...)
 	Proc = exec.Command(command[0], command[1:]...)
 	Proc.Env = os.Environ()
 	Proc.Env = append(Proc.Env, fmt.Sprintf("MODEL=%s", EnvModel))
 
-	var wgStreamSetup sync.WaitGroup
+	var wgPipeReady sync.WaitGroup
 	var wgProcStarted sync.WaitGroup
-	wgStreamSetup.Add(2)
+	wgPipeReady.Add(2)
 	wgProcStarted.Add(1)
 
-	go pipeToStream(true, onStdout, &wgStreamSetup, &wgProcStarted, Proc)
-	go pipeToStream(false, onStderr, &wgStreamSetup, &wgProcStarted, Proc)
+	go pipeToStream(true, onStdout, &wgPipeReady, &wgProcStarted, Proc)
+	go pipeToStream(false, onStderr, &wgPipeReady, &wgProcStarted, Proc)
 
 	logErr := func(err error) {
 		go Status(WSTypeError, err.Error())
 		log.Println(err)
 	}
 
-	wgStreamSetup.Wait()
+	wgPipeReady.Wait()
 
 	err := Proc.Start()
 	if err != nil {

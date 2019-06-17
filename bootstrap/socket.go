@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"os"
+	"os/signal"
 
-	"github.com/gorilla/websocket"
+	"github.com/sacOO7/gowebsocket"
 )
 
 const (
@@ -33,22 +35,22 @@ type wsMessage struct {
 }
 
 var (
-	c *websocket.Conn
+	socket gowebsocket.Socket
 )
 
-func wsSendMessage(message wsMessage) {
+func sendMessage(message wsMessage) {
 	b, err := json.Marshal(message)
-
-	err = c.WriteMessage(websocket.TextMessage, b)
 	if err != nil {
-		log.Println("write:", err)
+		log.Println("Unable to marshal message:", err)
 		return
 	}
+
+	socket.SendText(string(b))
 }
 
 // Status ...
 func Status(statusType string, data string) {
-	wsSendMessage(wsMessage{
+	sendMessage(wsMessage{
 		Action: "message",
 		Room:   EnvToken,
 		I:      EnvI,
@@ -59,7 +61,7 @@ func Status(statusType string, data string) {
 
 // Output ...
 func Output(data string) {
-	wsSendMessage(wsMessage{
+	sendMessage(wsMessage{
 		Action: "message",
 		Room:   EnvToken,
 		I:      EnvI,
@@ -68,11 +70,39 @@ func Output(data string) {
 	})
 }
 
-func onMessage(data []byte) {
+func onConnected(socket gowebsocket.Socket) {
+	// Join
+	sendMessage(wsMessage{
+		Action: "join",
+		Room:   EnvToken,
+	})
+
+	// Send INIT
+	sendMessage(wsMessage{
+		Action: "message",
+		Room:   EnvToken,
+		I:      EnvI,
+		Type:   WSTypeInit,
+	})
+
+	wg.Done()
+}
+
+func onError(err error, socket gowebsocket.Socket) {
+	log.Println("Recieved connect error", err)
+	Terminate()
+}
+
+func onTextMessage(text string, socket gowebsocket.Socket) {
+	b := []byte(text)
 	var message wsMessage
-	err := json.Unmarshal(data, &message)
+	err := json.Unmarshal(b, &message)
 	if err != nil {
 		log.Println(err)
+		return
+	}
+
+	if message.Type == "" {
 		return
 	}
 
@@ -94,36 +124,25 @@ func onMessage(data []byte) {
 // InitSocket ...
 func InitSocket() {
 
-	c, _, err := websocket.DefaultDialer.Dial("wss://fmgqmvup1i.execute-api.eu-west-1.amazonaws.com/prod", nil)
-	if err != nil {
-		log.Println(err)
-		Terminate()
-	}
-	defer c.Close()
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
 
-	// Join
-	wsSendMessage(wsMessage{
-		Action: "join",
-		Room:   EnvToken,
-	})
+	socket = gowebsocket.New("wss://fmgqmvup1i.execute-api.eu-west-1.amazonaws.com/prod")
 
-	// Send INIT
-	wsSendMessage(wsMessage{
-		Action: "message",
-		Room:   EnvToken,
-		I:      EnvI,
-		Type:   WSTypeInit,
-	})
+	socket.OnConnected = onConnected
+	socket.OnConnectError = onError
+	socket.OnDisconnected = onError
+	socket.OnTextMessage = onTextMessage
+	// socket.OnBinaryMessage = func(data [] byte, socket gowebsocket.Socket)
 
-	// Receive loop
-	go func() {
-		for {
-			_, message, err := c.ReadMessage()
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			onMessage(message)
+	socket.Connect()
+
+	for {
+		select {
+		case <-interrupt:
+			log.Println("interrupt")
+			socket.Close()
+			Terminate()
 		}
-	}()
+	}
 }

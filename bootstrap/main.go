@@ -24,14 +24,14 @@ var (
 
 func main() {
 	log.Println("Init Unix socket server")
-	// go InitUnixSocket()
+	go InitUnixSocket()
 
-	log.Println("Init Socket.io client")
+	log.Println("Init WebSocket client")
 	wg.Add(1)
-	InitSocket()
+	go InitSocket()
 	wg.Wait()
 
-	log.Println("Init project files and start drainage")
+	log.Println("Start integration and drainage")
 	wg.Add(1)
 	go StartIntegration()
 	go Drain()

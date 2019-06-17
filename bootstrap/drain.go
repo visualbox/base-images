@@ -33,7 +33,7 @@ func killIntegration() error {
 // Terminate ...
 func Terminate() {
 	if err := killIntegration(); err != nil {
-		log.Fatal("failed to kill integration process")
+		log.Fatal("Failed to kill integration process")
 	}
 	os.Exit(0)
 }
@@ -55,7 +55,6 @@ func Drain() {
 
 		if diff >= timeout {
 			wg.Done()
-			Terminate()
 		}
 
 		time.Sleep(timeoutTick * time.Second)

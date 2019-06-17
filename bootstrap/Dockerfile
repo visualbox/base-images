@@ -3,7 +3,7 @@ RUN mkdir /build
 ADD . /build/
 WORKDIR /build
 
-RUN go get github.com/gorilla/websocket
+RUN go get github.com/sacOO7/gowebsocket
 RUN CGO_ENABLED=0                              \
     GOOS=linux                                 \
     go build -a                                \
