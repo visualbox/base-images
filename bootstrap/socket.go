@@ -32,6 +32,7 @@ type wsMessage struct {
 	Room   string `json:"room,omitempty"`
 	I      string `json:"i,omitempty"`
 	Data   string `json:"data,omitempty"`
+	Meta   string `json:"meta,omitempty"`
 }
 
 var (
@@ -75,6 +76,7 @@ func onConnected(socket gowebsocket.Socket) {
 	sendMessage(wsMessage{
 		Action: "join",
 		Room:   EnvToken,
+		Meta:   EnvI,
 	})
 
 	// Send INIT
