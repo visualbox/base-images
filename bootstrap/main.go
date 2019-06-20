@@ -31,11 +31,11 @@ func main() {
 	go InitSocket()
 	wg.Wait()
 
-	log.Println("Start integration and drainage")
+	log.Println("Start integration and drain")
 	wg.Add(1)
 	go StartIntegration()
 	go Drain()
 	wg.Wait()
 
-	Terminate()
+	Terminate(true)
 }

@@ -31,14 +31,19 @@ func killIntegration() error {
 }
 
 // Terminate ...
-func Terminate() {
+func Terminate(killAll bool) {
+	// Kill integration process
 	if err := killIntegration(); err != nil {
 		log.Fatal("Failed to kill integration process")
 	}
-	os.Exit(0)
+
+	// Kill container
+	if killAll {
+		os.Exit(0)
+	}
 }
 
-// Tick -Update last checked timestamp.
+// Tick - Update last checked timestamp.
 func Tick() {
 	lastCheck = int32(time.Now().Unix())
 }

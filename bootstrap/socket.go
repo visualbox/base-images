@@ -16,6 +16,8 @@ const (
 	WSTypeInit = "INIT"
 	// WSTypeTerminate ...
 	WSTypeTerminate = "TERMINATE"
+	// WSTypeRestart ...
+	WSTypeRestart = "RESTART"
 	// WSTypeInfo ...
 	WSTypeInfo = "INFO"
 	// WSTypeOutput ...
@@ -92,7 +94,7 @@ func onConnected(socket gowebsocket.Socket) {
 
 func onError(err error, socket gowebsocket.Socket) {
 	log.Println("Recieved connect error", err)
-	Terminate()
+	Terminate(true)
 }
 
 func onTextMessage(text string, socket gowebsocket.Socket) {
@@ -116,8 +118,19 @@ func onTextMessage(text string, socket gowebsocket.Socket) {
 		// Kill integration process and container
 		// if 'i' is not present or same as EnvI.
 		if message.I == "" || message.I == EnvI {
-			Terminate()
+			Terminate(true)
 		}
+	case WSTypeRestart:
+		// Not for us
+		if message.I != EnvI {
+			return
+		}
+
+		EnvModel = message.Data
+
+		// Terminate / start integration again
+		go StartIntegration()
+
 	default:
 		log.Println("Unknown message type:", message.Type)
 	}
@@ -142,9 +155,9 @@ func InitSocket() {
 	for {
 		select {
 		case <-interrupt:
-			log.Println("interrupt")
+			log.Println("Interrupt")
 			socket.Close()
-			Terminate()
+			Terminate(true)
 		}
 	}
 }

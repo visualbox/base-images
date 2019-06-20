@@ -99,11 +99,12 @@ func run() error {
 func StartIntegration() {
 	go Status(WSTypeInfo, "Starting integration")
 
+	// Terminate any previous process
+	Terminate(false)
+
 	// Run integration CMD
 	err := run()
 	if err != nil {
-		Status(WSTypeError, "Unable to run integration command")
-		log.Println(err)
-		Terminate()
+		Status(WSTypeError, "Process terminated")
 	}
 }

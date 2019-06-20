@@ -1,0 +1,8 @@
+{
+  "name": "visualbox",
+  "version": "1.0.0",
+  "description": "VisualBox integration util",
+  "main": "index.js",
+  "author": "Pontus Aurdal <pontus.edvard@gmail.com>",
+  "license": "MIT"
+}
