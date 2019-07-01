@@ -19,6 +19,12 @@ var (
 	// EnvArgs - Entrypoint args.
 	EnvArgs = os.Args[1:]
 
+	// EnvRestAPIID - AWS API GW ID
+	EnvRestAPIID = os.Getenv("REST_API_ID")
+
+	// EnvWsAPIID - AWS API GW WebSocket Endpoint
+	EnvWsAPIID = os.Getenv("WS_API_ID")
+
 	wg = &sync.WaitGroup{}
 )
 

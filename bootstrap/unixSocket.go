@@ -7,6 +7,10 @@ import (
 	"net"
 )
 
+// API GW WS max payload size is 128 KB.
+// Make it less than that to account for JSON metadata.
+const maxPayloadSize = 127000
+
 func unixSocketServer(c net.Conn) {
 	for {
 		// Incoming buffer length
@@ -24,7 +28,11 @@ func unixSocketServer(c net.Conn) {
 		buf := make([]byte, length)
 		n, err = io.ReadFull(c, buf)
 		if uint32(n) == length {
-			go Output(string(buf))
+			if length > maxPayloadSize {
+				go LargeOutput(&buf, length)
+			} else {
+				go Output(string(buf))
+			}
 		}
 	}
 }

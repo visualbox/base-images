@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 
@@ -22,6 +26,8 @@ const (
 	WSTypeInfo = "INFO"
 	// WSTypeOutput ...
 	WSTypeOutput = "OUTPUT"
+	// WSTypeLargeOutput ...
+	WSTypeLargeOutput = "LARGEOUTPUT"
 	// WSTypeWarning ...
 	WSTypeWarning = "WARNING"
 	// WSTypeError ...
@@ -40,6 +46,43 @@ type wsMessage struct {
 var (
 	socket gowebsocket.Socket
 )
+
+// LargeOutput ...
+func LargeOutput(data *[]byte, length uint32) {
+	// http.Post(url, contentType, bytes.NewBuffer(*data))
+
+	url := fmt.Sprintf("https://%s.execute-api.eu-west-1.amazonaws.com/prod/containers/largeOutput", EnvRestAPIID)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	req, err := client.Post(url, "text/plain", bytes.NewBufferString(EnvToken))
+	if err != nil {
+		log.Println("Large Output HTTP error:", err)
+	}
+	defer req.Body.Close()
+
+	var result map[string]interface{}
+	json.NewDecoder(req.Body).Decode(&result)
+
+	// Upload
+	putReq, err := http.NewRequest("PUT", result["put"].(string), bytes.NewBuffer(*data))
+	// putReq.ContentLength = length
+	putResp, err := client.Do(putReq)
+	if err != nil {
+		log.Println("Large Output HTTP PUT error:", err)
+	}
+	defer putResp.Body.Close()
+
+	// Send download URL to client
+	sendMessage(wsMessage{
+		Action: "message",
+		Room:   EnvToken,
+		I:      EnvI,
+		Type:   WSTypeLargeOutput,
+		Data:   result["get"].(string),
+	})
+}
 
 func sendMessage(message wsMessage) {
 	b, err := json.Marshal(message)
@@ -142,7 +185,8 @@ func InitSocket() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	socket = gowebsocket.New("wss://fmgqmvup1i.execute-api.eu-west-1.amazonaws.com/prod")
+	endpoint := fmt.Sprintf("wss://%s.execute-api.eu-west-1.amazonaws.com/prod", EnvWsAPIID)
+	socket = gowebsocket.New(endpoint)
 
 	socket.OnConnected = onConnected
 	socket.OnConnectError = onError
